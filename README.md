@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AlbumTracker
 
-## Getting Started
+A polished, mobile-friendly foundation for a Spotify-powered album and song rating app.
 
-First, run the development server:
+Stack:
+- Next.js App Router + TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (auth, database, storage-ready)
+- Spotify Web API (search + saved albums sync)
+- Zod runtime validation
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## What This Version Includes
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Email/password auth with Supabase
+- Optional Spotify account linking via OAuth
+- Spotify search from inside the app (server route)
+- Add albums from Spotify results
+- Album detail pages with track list
+- Song ratings in 0.5 increments
+- Album average rating derived from rated tracks only
+- Unrated tracks surfaced as "not listened to yet"
+- Tags and status management (want to listen, currently listening, rated)
+- Album list filters and sorting foundation
+- Stats page with rating distribution, top albums/artists, and listening progress
+- Spotify saved albums sync action + last sync state
+- SQL migration with RLS from day one
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Local Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Install dependencies:
+	npm install
 
-## Learn More
+2. Copy env values:
+	copy .env.example .env.local
 
-To learn more about Next.js, take a look at the following resources:
+3. Fill in env values in .env.local:
+	- NEXT_PUBLIC_APP_URL
+	- NEXT_PUBLIC_SUPABASE_URL
+	- NEXT_PUBLIC_SUPABASE_ANON_KEY
+	- SUPABASE_SERVICE_ROLE_KEY
+	- SPOTIFY_CLIENT_ID
+	- SPOTIFY_CLIENT_SECRET
+	- SPOTIFY_REDIRECT_URI
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Create a Supabase project and run SQL migration:
+	- Apply supabase/migrations/0001_init.sql
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+5. Configure Spotify app:
+	- Add redirect URI matching SPOTIFY_REDIRECT_URI
+	- Enable scopes used by this app: user-library-read user-read-email user-read-private
 
-## Deploy on Vercel
+6. Start dev server:
+	npm run dev
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+7. Open:
+	http://localhost:3000
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project Structure
+
+- src/app: route handlers and pages
+- src/components: reusable UI and app shell
+- src/features: feature-local UI logic (search)
+- src/lib: shared utilities (env, schemas, rating, Supabase, Spotify)
+- src/server: server-only auth/library/actions
+- supabase/migrations: SQL schema + RLS
+
+## Data Model
+
+Core tables created in the first migration:
+- users
+- spotify_accounts
+- artists
+- albums
+- tracks
+- album_tracks
+- user_albums
+- song_ratings
+- tags
+- item_tags
+- item_statuses
+- user_settings
+- sync_state
+
+Notes:
+- Playlist support is intentionally excluded.
+- Song ratings are stored independently.
+- Album rating is derived from rated songs only.
+- Schema is shaped so public profiles and social follows can be added later.
+
+## Roadmap TODOs (Intentional Next Steps)
+
+- Social/public sharing:
+  - Add follow relationships and profile visibility tiers.
+  - Add public profile pages with public-only rating projection.
+- Advanced stats:
+  - Add richer trend views and time-based listening analytics.
+  - Add optional cached/materialized stats if needed for scale.
+- Product hardening:
+  - Add optimistic updates for rating/status interactions.
+  - Improve sync reliability with background job queue + retries.
+  - Add tests around actions, sync, and rating derivation rules.
+
+## Scope Guardrails
+
+- Keep first pass simple and extensible.
+- Do not add playlists.
+- Do not build mobile app/app-store work yet.
+- Avoid premature complexity; prioritize maintainable foundations.

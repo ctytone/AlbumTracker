@@ -1,0 +1,251 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { songRatingSchema, statusSchema } from "@/lib/schemas";
+import { fetchSpotifyAlbumDetails, fetchSavedAlbumsPage } from "@/server/spotify";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { recalculateAlbumRating, upsertAlbumGraphForUser } from "@/server/library";
+import { requireUser } from "@/server/auth";
+
+function getFormString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+export async function signUpAction(formData: FormData) {
+  const supabase = await createServerSupabaseClient();
+
+  const email = getFormString(formData, "email").trim();
+  const password = getFormString(formData, "password");
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    redirect(`/auth/sign-up?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect("/app/albums");
+}
+
+export async function signInAction(formData: FormData) {
+  const supabase = await createServerSupabaseClient();
+
+  const email = getFormString(formData, "email").trim();
+  const password = getFormString(formData, "password");
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    redirect(`/auth/sign-in?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect("/app/albums");
+}
+
+export async function signOutAction() {
+  const supabase = await createServerSupabaseClient();
+  await supabase.auth.signOut();
+  redirect("/");
+}
+
+export async function rateSongAction(formData: FormData) {
+  const { supabase, user } = await requireUser();
+
+  const raw = {
+    trackId: getFormString(formData, "trackId"),
+    rating: Number(getFormString(formData, "rating")),
+    isPublic: getFormString(formData, "isPublic") !== "false",
+  };
+
+  const parsed = songRatingSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error("Invalid rating payload.");
+  }
+
+  await supabase.from("song_ratings").upsert(
+    {
+      user_id: user.id,
+      track_id: parsed.data.trackId,
+      rating: parsed.data.rating,
+      is_public: parsed.data.isPublic,
+      rated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,track_id" },
+  );
+
+  const albumId = getFormString(formData, "albumId");
+  if (albumId) {
+    await recalculateAlbumRating(albumId);
+  }
+
+  revalidatePath(`/app/albums/${albumId}`);
+  revalidatePath("/app/albums");
+}
+
+export async function updateStatusAction(formData: FormData) {
+  const { supabase, user } = await requireUser();
+
+  const raw = {
+    itemType: getFormString(formData, "itemType"),
+    itemId: getFormString(formData, "itemId"),
+    status: getFormString(formData, "status"),
+  };
+
+  const parsed = statusSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error("Invalid status payload.");
+  }
+
+  await supabase.from("item_statuses").upsert(
+    {
+      user_id: user.id,
+      item_type: parsed.data.itemType,
+      item_id: parsed.data.itemId,
+      status: parsed.data.status,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "user_id,item_type,item_id",
+    },
+  );
+
+  revalidatePath("/app/albums");
+  revalidatePath(`/app/albums/${parsed.data.itemId}`);
+}
+
+export async function createTagAction(formData: FormData) {
+  const { supabase, user } = await requireUser();
+
+  const name = getFormString(formData, "name").trim().slice(0, 40);
+  if (!name) {
+    return;
+  }
+
+  await supabase.from("tags").upsert(
+    {
+      user_id: user.id,
+      name,
+      slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+    },
+    {
+      onConflict: "user_id,slug",
+    },
+  );
+
+  revalidatePath("/app/albums");
+  revalidatePath("/app/settings");
+}
+
+export async function assignTagAction(formData: FormData) {
+  const { supabase, user } = await requireUser();
+
+  const itemType = getFormString(formData, "itemType");
+  const itemId = getFormString(formData, "itemId");
+  const tagId = getFormString(formData, "tagId");
+
+  if (!itemType || !itemId || !tagId) {
+    return;
+  }
+
+  await supabase.from("item_tags").upsert(
+    {
+      user_id: user.id,
+      item_type: itemType,
+      item_id: itemId,
+      tag_id: tagId,
+    },
+    {
+      onConflict: "user_id,item_type,item_id,tag_id",
+    },
+  );
+
+  revalidatePath("/app/albums");
+  revalidatePath(`/app/albums/${itemId}`);
+}
+
+export async function addAlbumFromSpotifyAction(formData: FormData) {
+  const spotifyAlbumId = getFormString(formData, "spotifyAlbumId");
+
+  if (!spotifyAlbumId) {
+    return;
+  }
+
+  const details = await fetchSpotifyAlbumDetails(spotifyAlbumId);
+  await upsertAlbumGraphForUser(details);
+
+  revalidatePath("/app/albums");
+  revalidatePath(`/app/albums`);
+}
+
+export async function syncSavedAlbumsAction() {
+  const { supabase, user } = await requireUser();
+
+  await supabase.from("sync_state").upsert(
+    {
+      user_id: user.id,
+      status: "running",
+      started_at: new Date().toISOString(),
+      source: "spotify_saved_albums",
+    },
+    {
+      onConflict: "user_id,source",
+    },
+  );
+
+  try {
+    let imported = 0;
+
+    for (let offset = 0; offset < 200; offset += 20) {
+      const page = await fetchSavedAlbumsPage(offset, 20);
+      if (!page.items.length) {
+        break;
+      }
+
+      for (const item of page.items) {
+        const fullAlbum = await fetchSpotifyAlbumDetails(item.album.id);
+        await upsertAlbumGraphForUser(fullAlbum);
+        imported += 1;
+      }
+    }
+
+    await supabase.from("sync_state").upsert(
+      {
+        user_id: user.id,
+        status: "completed",
+        source: "spotify_saved_albums",
+        completed_at: new Date().toISOString(),
+        imported_count: imported,
+        last_error: null,
+      },
+      {
+        onConflict: "user_id,source",
+      },
+    );
+  } catch (error) {
+    await supabase.from("sync_state").upsert(
+      {
+        user_id: user.id,
+        status: "failed",
+        source: "spotify_saved_albums",
+        completed_at: new Date().toISOString(),
+        last_error: error instanceof Error ? error.message : "Unknown sync failure",
+      },
+      {
+        onConflict: "user_id,source",
+      },
+    );
+
+    throw error;
+  }
+
+  revalidatePath("/app/albums");
+  revalidatePath("/app/settings");
+}
