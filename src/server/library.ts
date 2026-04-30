@@ -85,7 +85,7 @@ export async function upsertAlbumGraphForUser(album: SpotifyAlbumPayload) {
 
   const primaryArtistId = artistRows?.[0]?.id ?? null;
 
-  const { data: insertedAlbum } = await supabase
+  const { data: insertedAlbum, error: albumError } = await supabase
     .from("albums")
     .upsert(
       {
@@ -105,8 +105,12 @@ export async function upsertAlbumGraphForUser(album: SpotifyAlbumPayload) {
     .select("id")
     .single();
 
+  if (albumError) {
+    throw new Error(`Album upsert failed: ${albumError.message}`);
+  }
+
   if (!insertedAlbum) {
-    throw new Error("Failed to upsert album.");
+    throw new Error("Failed to upsert album: no data returned.");
   }
 
   for (const track of album.tracks.items) {
