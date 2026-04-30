@@ -27,6 +27,22 @@ type SpotifyAlbumPayload = {
   };
 };
 
+function normalizeSpotifyReleaseDate(releaseDate: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(releaseDate)) {
+    return releaseDate;
+  }
+
+  if (/^\d{4}-\d{2}$/.test(releaseDate)) {
+    return `${releaseDate}-01`;
+  }
+
+  if (/^\d{4}$/.test(releaseDate)) {
+    return `${releaseDate}-01-01`;
+  }
+
+  return null;
+}
+
 export async function upsertAlbumGraphForUser(album: SpotifyAlbumPayload) {
   const { supabase, user } = await requireUser();
   const serviceRoleClient = createServiceRoleClient();
@@ -76,7 +92,7 @@ export async function upsertAlbumGraphForUser(album: SpotifyAlbumPayload) {
         spotify_id: album.id,
         name: album.name,
         album_type: album.album_type,
-        release_date: album.release_date || null,
+        release_date: normalizeSpotifyReleaseDate(album.release_date),
         popularity: album.popularity ?? null,
         cover_url: album.images[0]?.url ?? null,
         spotify_url: album.external_urls?.spotify ?? null,
