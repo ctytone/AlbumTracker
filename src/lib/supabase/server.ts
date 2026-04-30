@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 import { getEnv } from "@/lib/env";
@@ -22,5 +23,13 @@ export async function createServerSupabaseClient() {
         },
       },
     },
+  );
+}
+
+export function createServiceRoleClient() {
+  const env = getEnv();
+  return createServiceClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.SUPABASE_SERVICE_ROLE_KEY,
   );
 }

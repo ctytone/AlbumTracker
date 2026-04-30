@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { fetchSpotifyToken } from "@/lib/spotify/client";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceRoleClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -48,7 +48,9 @@ export async function GET(request: Request) {
       product?: string;
     };
 
-    await supabase.from("spotify_accounts").upsert(
+    // Use service role client to bypass RLS for this privileged operation
+    const serviceRoleClient = createServiceRoleClient();
+    await serviceRoleClient.from("spotify_accounts").upsert(
       {
         user_id: user.id,
         spotify_user_id: profile.id,

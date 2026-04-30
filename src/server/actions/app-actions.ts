@@ -45,19 +45,13 @@ export async function signUpAction(formData: FormData) {
 export async function signInAction(formData: FormData) {
   const supabase = await createServerSupabaseClient();
 
-  console.log("DEBUG: FormData entries:", Array.from(formData.entries()));
-
   const email = getFormString(formData, "email").trim();
   const password = getFormString(formData, "password");
 
-  console.log("DEBUG: Extracted email:", email, "password:", password ? "***" : "(empty)");
-  console.log("SignInAction called with email:", email);
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
-
-  console.log("Supabase response - data:", data?.user?.id || "no user", "error:", error?.message || "no error");
 
   if (error) {
     redirect(`/auth/sign-in?error=${encodeURIComponent(error.message)}`);
