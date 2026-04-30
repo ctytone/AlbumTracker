@@ -103,7 +103,7 @@ export default async function SettingsPage({
       </Card>
 
       <form action={signOutAction}>
-        <Button variant="outline">Sign out</Button>
+        <Button type="submit" variant="outline">Sign out</Button>
       </form>
     </section>
   );

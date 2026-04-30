@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  allowedDevOrigins: ["proponent-jaybird-finalize.ngrok-free.dev"],
 };
 
 export default nextConfig;

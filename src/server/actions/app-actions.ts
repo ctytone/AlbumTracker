@@ -10,8 +10,18 @@ import { recalculateAlbumRating, upsertAlbumGraphForUser } from "@/server/librar
 import { requireUser } from "@/server/auth";
 
 function getFormString(formData: FormData, key: string) {
-  const value = formData.get(key);
-  return typeof value === "string" ? value : "";
+  // Try standard name first
+  let value = formData.get(key);
+  if (value) return typeof value === "string" ? value : "";
+  
+  // Next.js 16 form serialization: try numbered variants (1_email, 2_password, etc.)
+  for (const [k, v] of formData.entries()) {
+    if (k.endsWith(`_${key}`)) {
+      return typeof v === "string" ? v : "";
+    }
+  }
+  
+  return "";
 }
 
 export async function signUpAction(formData: FormData) {
@@ -38,10 +48,13 @@ export async function signInAction(formData: FormData) {
   const email = getFormString(formData, "email").trim();
   const password = getFormString(formData, "password");
 
-  const { error } = await supabase.auth.signInWithPassword({
+  console.log("SignInAction called with email:", email);
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
+
+  console.log("Supabase response - data:", data?.user?.id || "no user", "error:", error?.message || "no error");
 
   if (error) {
     redirect(`/auth/sign-in?error=${encodeURIComponent(error.message)}`);
