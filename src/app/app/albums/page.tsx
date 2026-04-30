@@ -40,17 +40,22 @@ function pickArtistName(artistRelation: { name: string } | Array<{ name: string 
   return artistRelation.name;
 }
 
-export default async function AlbumsPage({
-}: {
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
+type AlbumRow = {
+  album_id: string;
+  derived_rating: string | number | null;
+  albums: AlbumRelation;
+};
+
+export default async function AlbumsPage() {
   const { supabase, user } = await requireUser();
 
-  let query = supabase
+  const { data: rows, error } = await supabase
     .from("user_albums")
     .select(
       `
-      export default async function AlbumsPage() {
+      album_id,
+      derived_rating,
+      albums (
         id,
         name,
         release_date,
@@ -61,21 +66,22 @@ export default async function AlbumsPage({
     )
     .eq("user_id", user.id);
 
-  query = query.order("updated_at", { ascending: false });
-
-  console.log("[Albums page] User ID:", user.id);
-  const { data: rows, error } = await query;
-  console.log("[Albums page] Query result:", { rowCount: rows?.length, error, sample: rows?.[0] });
+  if (error) {
+    throw new Error(error.message);
+  }
 
   // Fetch item statuses separately since there's no direct FK relationship
-  const albumIds = (rows ?? []).map((row) => row.album_id);
+  const albumRows = (rows ?? []) as AlbumRow[];
+  const albumIds = albumRows.map((row) => row.album_id);
   const { data: itemStatuses } = await supabase
+    .from("item_statuses")
     .select("item_id,status")
+    .eq("user_id", user.id)
     .eq("item_type", "album")
     .in("item_id", albumIds.length > 0 ? albumIds : ["00000000-0000-0000-0000-000000000000"]);
 
   const statusMap = new Map(itemStatuses?.map((s) => [s.item_id, s]) ?? []);
-  const albums = rows ?? [];
+  const albums = albumRows;
 
   return (
     <section className="space-y-5">
