@@ -1,6 +1,7 @@
 import { itemTypeValues } from "@/lib/constants";
 import { calculateAlbumAverage } from "@/lib/rating";
 import type { SpotifyArtist } from "@/lib/types";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { requireUser } from "@/server/auth";
 
 type SpotifyAlbumPayload = {
@@ -28,6 +29,20 @@ type SpotifyAlbumPayload = {
 
 export async function upsertAlbumGraphForUser(album: SpotifyAlbumPayload) {
   const { supabase, user } = await requireUser();
+  const serviceRoleClient = createServiceRoleClient();
+
+  const { error: userError } = await serviceRoleClient.from("users").upsert(
+    {
+      id: user.id,
+      handle: user.user_metadata?.user_name ?? null,
+      display_name: user.user_metadata?.full_name ?? null,
+    },
+    { onConflict: "id" },
+  );
+
+  if (userError) {
+    throw new Error(`Failed to prepare user record: ${userError.message}`);
+  }
 
   for (const artist of album.artists) {
     await supabase.from("artists").upsert(
@@ -122,7 +137,7 @@ export async function upsertAlbumGraphForUser(album: SpotifyAlbumPayload) {
     }
   }
 
-  await supabase.from("user_albums").upsert(
+  const { error: userAlbumError } = await supabase.from("user_albums").upsert(
     {
       user_id: user.id,
       album_id: insertedAlbum.id,
@@ -133,6 +148,10 @@ export async function upsertAlbumGraphForUser(album: SpotifyAlbumPayload) {
       onConflict: "user_id,album_id",
     },
   );
+
+  if (userAlbumError) {
+    throw new Error(`Failed to link album to user: ${userAlbumError.message}`);
+  }
 
   return insertedAlbum.id;
 }
