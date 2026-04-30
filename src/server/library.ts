@@ -20,7 +20,7 @@ type SpotifyAlbumPayload = {
       track_number: number;
       disc_number: number;
       explicit: boolean;
-      preview_url: string | null;
+      preview_url?: string | null;
       artists: SpotifyArtist[];
     }>;
   };
@@ -97,7 +97,7 @@ export async function upsertAlbumGraphForUser(album: SpotifyAlbumPayload) {
           name: track.name,
           duration_ms: track.duration_ms,
           explicit: track.explicit,
-          spotify_preview_url: track.preview_url,
+          spotify_preview_url: track.preview_url ?? null,
           primary_artist_id: primaryArtistId,
         },
         {
