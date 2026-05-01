@@ -5,52 +5,72 @@ import { Star } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export function RatingStars({
-  value,
-  name,
-}: {
-  value: number | null;
-  /** If `name` is provided, each star will be rendered as a submit button with this name/value. Useful inside forms. */
-  name?: string;
-}) {
+/**
+ * 5-star widget that supports half-star ratings (0.5 steps).
+ * - `value` is the current rating (null or number between 0.5 and 5.0)
+ * - If `name` is provided, each half/full segment is rendered as a submit button
+ *   so clicking it will submit a form with that `name` and value (e.g. "3.5").
+ */
+export function RatingStars({ value, name }: { value: number | null; name?: string }) {
   const [hover, setHover] = useState<number | null>(null);
+
+  const current = hover ?? value ?? 0;
 
   return (
     <div className="flex items-center gap-1">
-      {Array.from({ length: 5 }, (_, i) => i + 1).map((star) => {
-        const active = (value ?? 0) >= star;
-        const hovered = hover !== null && hover >= star;
-        const filled = hovered || active;
-
-        const commonProps = {
-          key: star,
-          onMouseEnter: () => setHover(star),
-          onMouseLeave: () => setHover(null),
-          className: cn(
-            "inline-flex items-center justify-center rounded-md p-1 transition",
-            filled ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-300",
-          ),
-          'aria-label': `Rate ${star} stars`,
-        } as any;
-
-        if (name) {
-          return (
-            <button {...commonProps} type="submit" name={name} value={String(star)}>
-              <Star className={cn("h-5 w-5", filled && "fill-current")} />
-            </button>
-          );
+      {Array.from({ length: 5 }, (_, idx) => {
+        const star = idx + 1;
+        // Determine fill percent for this star based on `current` (0, 50, 100)
+        let fill = 0;
+        if (current >= star) {
+          fill = 100;
+        } else if (current >= star - 0.5) {
+          fill = 50;
         }
 
+        const fullValue = star;
+        const halfValue = Number((star - 0.5).toFixed(1));
+
         return (
-          <button
-            {...commonProps}
-            type="button"
-            onClick={() => {
-              /* noop - callers can handle clicks by wrapping in a form or controlling state */
-            }}
-          >
-            <Star className={cn("h-5 w-5", filled && "fill-current")} />
-          </button>
+          <div key={star} className="relative inline-flex items-center">
+            <div className="relative w-6 h-6">
+              <Star className="absolute inset-0 h-6 w-6 text-muted-foreground" />
+              <div
+                className="absolute left-0 top-0 h-6 overflow-hidden"
+                style={{ width: `${fill}%` }}
+              >
+                <Star className="h-6 w-6 text-yellow-400 fill-current" />
+              </div>
+            </div>
+
+            {/* Left half button (half star) */}
+            <button
+              type={name ? "submit" : "button"}
+              name={name}
+              value={String(halfValue)}
+              onMouseEnter={() => setHover(halfValue)}
+              onMouseLeave={() => setHover(null)}
+              aria-label={`Rate ${halfValue} stars`}
+              className={cn(
+                "absolute left-0 top-0 h-6 w-3 bg-transparent",
+                name ? "" : "cursor-pointer",
+              )}
+            />
+
+            {/* Right half button (full star) */}
+            <button
+              type={name ? "submit" : "button"}
+              name={name}
+              value={String(fullValue)}
+              onMouseEnter={() => setHover(fullValue)}
+              onMouseLeave={() => setHover(null)}
+              aria-label={`Rate ${fullValue} stars`}
+              className={cn(
+                "absolute right-0 top-0 h-6 w-3 bg-transparent",
+                name ? "" : "cursor-pointer",
+              )}
+            />
+          </div>
         );
       })}
     </div>

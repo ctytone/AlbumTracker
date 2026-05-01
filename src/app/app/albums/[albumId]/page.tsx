@@ -218,7 +218,7 @@ export default async function AlbumDetailPage({
                   <input type="hidden" name="trackId" value={track.id} />
                   <input type="hidden" name="albumId" value={albumId} />
                   {/* Render 5-star submit buttons; clicking a star submits the form immediately */}
-                  <RatingStars name="rating" value={rating ? Math.round(Number(rating)) : null} />
+                  <RatingStars name="rating" value={rating ? Number(rating) : null} />
                 </form>
               </div>
             );

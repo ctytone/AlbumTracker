@@ -87,7 +87,7 @@ export default async function SongPage({
             <form action={rateSongAction} className="ml-2">
               <input type="hidden" name="trackId" value={trackId} />
               <input type="hidden" name="albumId" value={albumIdValue} />
-              <RatingStars name="rating" value={rating ? Math.round(Number(rating.rating)) : null} />
+              <RatingStars name="rating" value={rating ? Number(rating.rating) : null} />
             </form>
           </div>
         </CardContent>
