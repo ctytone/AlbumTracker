@@ -57,6 +57,17 @@ export default async function SongPage({
     albumLink?.albums as { name: string } | Array<{ name: string }> | null,
   );
 
+  // Determine albumId safely — `albumLink.albums` may be an array or an object.
+  let albumIdValue = "";
+  const albumsField = (albumLink as any)?.albums;
+  if (albumsField) {
+    if (Array.isArray(albumsField)) {
+      albumIdValue = albumsField[0]?.id ?? "";
+    } else {
+      albumIdValue = albumsField.id ?? "";
+    }
+  }
+
   return (
     <section className="space-y-4">
       <h1 className="font-heading text-3xl">{track.name}</h1>
@@ -75,7 +86,7 @@ export default async function SongPage({
             {/* Inline form to rate song: clicking a star will submit immediately. Ratings are always public. */}
             <form action={rateSongAction} className="ml-2">
               <input type="hidden" name="trackId" value={trackId} />
-              <input type="hidden" name="albumId" value={albumLink?.albums?.id ?? ""} />
+              <input type="hidden" name="albumId" value={albumIdValue} />
               <RatingStars name="rating" value={rating ? Math.round(Number(rating.rating)) : null} />
             </form>
           </div>
