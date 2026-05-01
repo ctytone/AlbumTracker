@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
+import { RatingStars } from "@/components/rating-stars";
+import { rateSongAction } from "@/server/actions/app-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/server/auth";
 
@@ -70,7 +72,12 @@ export default async function SongPage({
             <Badge variant={rating ? "default" : "secondary"}>
               {rating ? `${Number(rating.rating).toFixed(1)} stars` : "Not listened to yet"}
             </Badge>
-            {rating ? <Badge variant="outline">{rating.is_public ? "Public" : "Private"}</Badge> : null}
+            {/* Inline form to rate song: clicking a star will submit immediately. Ratings are always public. */}
+            <form action={rateSongAction} className="ml-2">
+              <input type="hidden" name="trackId" value={trackId} />
+              <input type="hidden" name="albumId" value={albumLink?.albums?.id ?? ""} />
+              <RatingStars name="rating" value={rating ? Math.round(Number(rating.rating)) : null} />
+            </form>
           </div>
         </CardContent>
       </Card>

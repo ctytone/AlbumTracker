@@ -1,38 +1,55 @@
 "use client";
 
+import { useState } from "react";
 import { Star } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const values = Array.from({ length: 10 }, (_, index) => (index + 1) * 0.5);
-
 export function RatingStars({
   value,
-  onChange,
+  name,
 }: {
   value: number | null;
-  onChange: (rating: number) => void;
+  /** If `name` is provided, each star will be rendered as a submit button with this name/value. Useful inside forms. */
+  name?: string;
 }) {
+  const [hover, setHover] = useState<number | null>(null);
+
   return (
-    <div className="flex flex-wrap gap-1">
-      {values.map((rating) => {
-        const active = value !== null && value >= rating;
+    <div className="flex items-center gap-1">
+      {Array.from({ length: 5 }, (_, i) => i + 1).map((star) => {
+        const active = (value ?? 0) >= star;
+        const hovered = hover !== null && hover >= star;
+        const filled = hovered || active;
+
+        const commonProps = {
+          key: star,
+          onMouseEnter: () => setHover(star),
+          onMouseLeave: () => setHover(null),
+          className: cn(
+            "inline-flex items-center justify-center rounded-md p-1 transition",
+            filled ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-300",
+          ),
+          'aria-label': `Rate ${star} stars`,
+        } as any;
+
+        if (name) {
+          return (
+            <button {...commonProps} type="submit" name={name} value={String(star)}>
+              <Star className={cn("h-5 w-5", filled && "fill-current")} />
+            </button>
+          );
+        }
 
         return (
           <button
-            key={rating}
+            {...commonProps}
             type="button"
-            onClick={() => onChange(rating)}
-            className={cn(
-              "inline-flex items-center rounded-md border px-2 py-1 text-xs transition",
-              active
-                ? "border-primary/50 bg-primary/10 text-primary"
-                : "border-border bg-background text-muted-foreground hover:border-primary/30",
-            )}
-            aria-label={`Rate ${rating} stars`}
+            onClick={() => {
+              /* noop - callers can handle clicks by wrapping in a form or controlling state */
+            }}
           >
-            <Star className={cn("mr-1 h-3 w-3", active && "fill-primary")} />
-            {rating.toFixed(1)}
+            <Star className={cn("h-5 w-5", filled && "fill-current")} />
           </button>
         );
       })}

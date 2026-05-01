@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { RatingStars } from "@/components/rating-stars";
 
 const ratingValues = Array.from({ length: 10 }, (_, index) => ((index + 1) * 0.5).toFixed(1));
 
@@ -213,32 +214,11 @@ export default async function AlbumDetailPage({
                     {rating ? `${rating.toFixed(1)} stars` : "Not listened to yet"}
                   </Badge>
                 </div>
-                <form action={rateSongAction} className="mt-3 flex flex-wrap items-center gap-2">
+                <form action={rateSongAction} className="mt-3 flex items-center gap-2">
                   <input type="hidden" name="trackId" value={track.id} />
                   <input type="hidden" name="albumId" value={albumId} />
-                  <select
-                    name="rating"
-                    defaultValue={rating?.toFixed(1) ?? ""}
-                    className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-                  >
-                    <option value="">Select rating</option>
-                    {ratingValues.map((value) => (
-                      <option key={value} value={value}>
-                        {value} stars
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    name="isPublic"
-                    defaultValue="true"
-                    className="rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-                  >
-                    <option value="true">Public rating</option>
-                    <option value="false">Private rating</option>
-                  </select>
-                  <Button type="submit" size="sm">
-                    Save
-                  </Button>
+                  {/* Render 5-star submit buttons; clicking a star submits the form immediately */}
+                  <RatingStars name="rating" value={rating ? Math.round(Number(rating)) : null} />
                 </form>
               </div>
             );
